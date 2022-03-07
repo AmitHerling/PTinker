@@ -164,7 +164,8 @@ void VerifyEmbeddedSignature(LPCWSTR pwszSourceFile)
 
 }
 
-void walkOnModules(HANDLE pHandle, BOOL verifySign) {
+void walkOnModules(HANDLE pHandle, BOOL verifySign)
+{
     /* Walks the process module tree and prints output accordingly 
     * [in] pHandle Handle
     * [in] verifySign BOOL 
@@ -193,7 +194,8 @@ void walkOnModules(HANDLE pHandle, BOOL verifySign) {
     }
 }
 
-BOOL safeCompareWide(TCHAR* szUserString, TCHAR* szModuleString) {
+BOOL safeCompareWide(TCHAR* szUserString, TCHAR* szModuleString)
+{
     /* Wide character compare operations
     * intended to gurantee case insensetive wchar to wchar comparison 
     * return bool relaxed match
@@ -217,7 +219,8 @@ BOOL safeCompareWide(TCHAR* szUserString, TCHAR* szModuleString) {
     return match;
 }
 
-void fishModByName(TCHAR* moduleName, HANDLE pHandle) {
+void fishModByName(TCHAR* moduleName, HANDLE pHandle) 
+{
     /* Enumerates on modules, prints specified mod by name 
     * (I'm not sure by design but I chose not to include this logic in modWalk because 
     * this operation may be more specific)
@@ -263,7 +266,8 @@ void fishProcByName(TCHAR* processName, HANDLE pHandle)
 
 }
 
-void procByPid(ActionType action, DWORD pId) {
+void procByPid(ActionType action, DWORD pId) 
+{
     /* Does specific logics on process specified pid 
     * [in] ActionType Enum 
     * [in] pId DWORD
@@ -289,7 +293,8 @@ void procByPid(ActionType action, DWORD pId) {
     CloseHandle(pHandle);
 };
 
-void walkOnProcesses(TCHAR* pName, BOOL findMod) {
+void walkOnProcesses(TCHAR* pName, BOOL findMod) 
+{
     /* Enumerates all processs and does specifc logic by name
     * [in] pName *wchar
     * [out] findMod BOOL
@@ -328,56 +333,64 @@ void walkOnProcesses(TCHAR* pName, BOOL findMod) {
 }
 
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) 
+{
     DWORD pId = NULL;
-    char cOpt;
-    char* pmName;
-    int nOpt;
+    char* pmName = NULL;
 
-    if (argc != 4) {
-        _tprintf_s(TEXT("usage: tinker {-n <NAME> -p <PID>} [-l -m -s]"));
+    if (argc != 3) {
+        _tprintf_s(TEXT("usage: tinker {-n<NAME> -p<PID>} [-l] [-m] [-s]"));
         return 1;
     }
 
-    if (strncmp(argv[1], "-p", 2) == 0 && strlen(argv[2]) != 0)
-    {
+    int opti;
+    for (opti = 1; opti < argc && argv[opti][0] == '-'; opti++) {
+        switch (argv[opti][1])
+        {
+        case 'p':
+            if (strlen(argv[opti] + 2) != 0)
+            {
+                char* p;
+                errno = 0;
+                long arg = strtol(argv[opti] + 2, &p, 10);
+                if (*p != '\0' || errno != 0) {
+                    return 1;
+                }
 
-        char* p;
-        errno = 0;
-        long arg = strtol(argv[2], &p, 10);
-        if (*p != '\0' || errno != 0) {
-            return 1; 
+                if (arg < INT_MIN || arg > INT_MAX) {
+                    return 1;
+                }
+                pId = arg;
+            }
+            break;
+        case 'n':
+            pmName = argv[opti] + 2;
+            break;
+        case 'l':
+            if (pId != NULL) 
+            {
+                procByPid(list, pId);
+            }
+            else if (pmName != NULL)
+            {
+                walkOnProcesses(pmName, false);
+            }
+            break;
+        case 'm':
+            if (pmName != NULL)
+            {
+                walkOnProcesses(pmName, true);
+            }
+            break;
+        case 's':
+            if (pId != NULL)
+            {
+                procByPid(sign, pId);
+            }
+            break;
+        default:
+            break;
         }
-
-        if (arg < INT_MIN || arg > INT_MAX) {
-            return 1;
-        }
-        pId = arg;
     }
-    
-    cOpt = argv[3][1];
-    switch (cOpt)
-    {
-    case 'l':
-        if (pId != NULL) {
-            procByPid(list, pId);
-        }
-        else { 
-            pmName = argv[2];
-            walkOnProcesses(pmName, false);
-        }
-        break;
-    case 'm':
-        pmName = argv[2];
-        walkOnProcesses(pmName, true);
-        break;
 
-    case 's':
-        procByPid(sign, pId);
-        break;
-
-    default:
-        _tprintf_s(TEXT("usage: tinker {-n <NAME> -p <PID>} [-l -m -s]"));
-        break;
-    }
 }
